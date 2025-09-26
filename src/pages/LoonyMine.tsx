@@ -15,6 +15,8 @@ const LoonyMine = () => {
   const [timer, setTimer] = useState({ minutes: 14, seconds: 59 });
   const [onlineCount, setOnlineCount] = useState('--');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [rconConfig, setRconConfig] = useState('');
+  const [showAdmin, setShowAdmin] = useState(false);
 
   // Load cart from localStorage
   useEffect(() => {
@@ -46,10 +48,31 @@ const LoonyMine = () => {
     return () => clearInterval(countdown);
   }, []);
 
-  // Fetch online count
+  // Fetch online count from mcsrvstat API
   useEffect(() => {
-    const mockOnline = Math.floor(Math.random() * 200) + 50;
-    setOnlineCount(mockOnline.toString());
+    const fetchOnlineCount = async () => {
+      try {
+        const response = await fetch('https://api.mcsrvstat.us/2/mc.loonymine.ru');
+        const data = await response.json();
+        
+        if (data.online) {
+          setOnlineCount(data.players.online.toString());
+        } else {
+          setOnlineCount('Офлайн');
+        }
+      } catch (error) {
+        console.error('Ошибка получения онлайна:', error);
+        // Fallback to mock data if API fails
+        const mockOnline = Math.floor(Math.random() * 200) + 50;
+        setOnlineCount(mockOnline.toString());
+      }
+    };
+
+    fetchOnlineCount();
+    
+    // Update online count every 30 seconds
+    const interval = setInterval(fetchOnlineCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Auto-slide reviews
@@ -227,7 +250,7 @@ const LoonyMine = () => {
             </div>
 
             <nav className="hidden md:flex space-x-8">
-              {['home', 'rules', 'faq', 'reviews', 'terms'].map(section => (
+              {['home', 'rules', 'faq', 'reviews', 'terms', 'admin'].map(section => (
                 <button
                   key={section}
                   onClick={() => setActiveSection(section)}
@@ -242,6 +265,7 @@ const LoonyMine = () => {
                   {section === 'faq' && 'FAQ'}
                   {section === 'reviews' && 'Отзывы'}
                   {section === 'terms' && 'Соглашение'}
+                  {section === 'admin' && '⚙️ Админ'}
                 </button>
               ))}
             </nav>
@@ -471,6 +495,91 @@ const LoonyMine = () => {
                   </p>
                 </div>
               </Card>
+            </div>
+          </section>
+        )}
+
+        {/* Admin Section */}
+        {activeSection === 'admin' && (
+          <section className="py-16">
+            <div className="container mx-auto px-4 max-w-4xl">
+              <h2 className="text-4xl font-bold text-center text-purple-600 mb-12">⚙️ Панель администратора</h2>
+              
+              <div className="space-y-8">
+                <Card className="p-6">
+                  <h3 className="text-xl font-bold text-purple-600 mb-4">RCON Настройки</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        RCON Хост:Порт
+                      </label>
+                      <input
+                        type="text"
+                        value={rconConfig}
+                        onChange={(e) => setRconConfig(e.target.value)}
+                        placeholder="mc.loonymine.ru:25575"
+                        className="w-full p-3 border rounded-lg bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        RCON Пароль
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Введите RCON пароль"
+                        className="w-full p-3 border rounded-lg bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    
+                    <div className="flex space-x-4">
+                      <Button className="bg-green-600 hover:bg-green-700">
+                        💾 Сохранить настройки
+                      </Button>
+                      <Button variant="outline">
+                        🔍 Тестировать подключение
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <h3 className="text-xl font-bold text-purple-600 mb-4">Статистика сервера</h3>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{onlineCount}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Игроков онлайн</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{cart.reduce((sum, item) => sum + item.quantity, 0)}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">В корзинах</div>
+                    </div>
+                    <div className="p-4 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">{getTotalPrice()}₽</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Общая сумма</div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <h3 className="text-xl font-bold text-purple-600 mb-4">Управление таймером</h3>
+                  <div className="flex space-x-4 items-center">
+                    <Button 
+                      onClick={() => setTimer({ minutes: 14, seconds: 59 })}
+                      variant="outline"
+                    >
+                      🔄 Перезапустить таймер
+                    </Button>
+                    <Button 
+                      onClick={() => setTimer({ minutes: 0, seconds: 0 })}
+                      variant="destructive"
+                    >
+                      ⏹️ Остановить акцию
+                    </Button>
+                  </div>
+                </Card>
+              </div>
             </div>
           </section>
         )}
